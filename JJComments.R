@@ -1,4 +1,5 @@
 # 加载必要的库
+# load libraries
 library(httr)
 library(XML)
 library(rvest)
@@ -9,12 +10,12 @@ library(purrr)
 # 基础 URL
 base_url <- "https://www.jjwxc.net/comment.php?novelid=6272118&chapterid="
 
-# 爬取章节的页数
+# 爬取章节的页数 the pages I need to scrape
 chapter_pages <- map_df(1:155, ~{
   # 构建章节的 URL
   url <- paste0(base_url, .x, "&page=1")
   
-  # 发起请求并解析 HTML
+  # 发起请求并解析 HTML 
   page <- tryCatch({
     read_html(GET(url))
   }, error = function(e) {
@@ -25,12 +26,12 @@ chapter_pages <- map_df(1:155, ~{
   if (!is.null(page)) {
     # 提取总页数的文本
     total_pages <- page %>%
-      html_node("div.pagebar span.num") %>%  # 定位总计页数的 <span>
+      html_node("div.pagebar span.num") %>%  # 定位总计页数的 <span> check the page number
       
       ### 这里有一个问题，如果总页数小于等于5页，就不会有总计页数，就会抓到NA
       ###### 暂时先这样，之后有时间再来解决
       
-      html_text(trim = TRUE) %>%            # 提取文本并去除空格
+      html_text(trim = TRUE) %>%            # 提取文本并去除空格 extract text and delete empty spaces
       as.numeric()                         # 转换为数值
   } else {
     total_pages <- NA
@@ -39,13 +40,15 @@ chapter_pages <- map_df(1:155, ~{
   # 返回数据框
   data.frame(
     Chapter_ID = .x,
-    Total_Pages = ifelse(is.na(total_pages), 0, total_pages) # 缺失设为 0
+    Total_Pages = ifelse(is.na(total_pages), 0, total_pages) # 缺失设为 0 set missing value as 0
   )
 })
 
 chapter_pages[chapter_pages$Total_Pages == 0, ]
 
 # 手动修改评论页少于等于5页的章节，其中两章被屏蔽，可删除，暂时先这样
+# there's some chapters being blocked and some chapters have comment pages less than 6(return NA from above)
+# so I adjust them by hand
 
 chapter_pages$Total_Pages[chapter_pages$Chapter_ID == 45] <- 5
 chapter_pages$Total_Pages[chapter_pages$Chapter_ID == 51] <- 5
@@ -179,6 +182,7 @@ for (chapter_id in cleaned_chapter_pages$Chapter_ID[cleaned_chapter_pages$Chapte
 
 all_comments$Chapter <- as.integer(all_comments$Chapter)
 
+# save comments data
 write.table(all_comments, "all_comments.csv", row.names = FALSE, sep = "\t")
 
 
